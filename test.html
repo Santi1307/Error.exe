@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>「ＮΞＴＲＡＶΞＲＳΞ」</title>
+    <style>
+        body {
+            background-color: black;
+            color: lime;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+        }
+        .container {
+            width: 60%;
+            margin: 50px auto;
+        }
+        h1 {
+            font-size: 24px;
+            text-shadow: 0px 0px 10px lime;
+        }
+        textarea, input {
+            background: black;
+            color: lime;
+            border: 1px solid lime;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            text-align: center;
+            padding: 10px;
+            margin-top: 10px;
+            text-transform: uppercase;
+            text-shadow: 0px 0px 5px lime;
+        }
+        .code-inputs {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .code-inputs input {
+            width: 20%;
+        }
+        button {
+            background: lime;
+            color: black;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            box-shadow: 0px 0px 5px lime;
+        }
+        button:hover {
+            background: darkgreen;
+        }
+        .result {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .loading-text {
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 10px;
+            color: cyan;
+            letter-spacing: 2px;
+        }
+        .progress-container {
+            width: 80%;
+            background-color: darkgreen;
+            margin: 10px auto;
+            height: 10px;
+            display: none;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: lime;
+            transition: width 0.2s ease-in-out;
+        }
+        #retrievedText {
+            font-size: 18px;
+            font-weight: bold;
+            color: cyan;
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3>「ＮΞＴＲＡＶΞＲＳΞ」</h3>
+
+        <div class="input-section">
+            <textarea id="inputText" placeholder="Enter your secret text here..."></textarea>
+            <button onclick="generateLocationCode()">Generate Code</button>
+        </div>
+
+        <div class="result">
+            <p id="locationCode"></p>
+        </div>
+
+        <div class="decode-section">
+            <div class="code-inputs">
+                <input type="text" id="codePart1" maxlength="1" placeholder="X" oninput="moveToNext(this, 'codePart2')" onkeydown="moveBack(event, 'codePart1', null)">
+                <input type="text" id="codePart2" maxlength="2" placeholder="YY" oninput="moveToNext(this, 'codePart3')" onkeydown="moveBack(event, 'codePart2', 'codePart1')">
+                <input type="text" id="codePart3" maxlength="3" placeholder="ZZX" onkeydown="moveBack(event, 'codePart3', 'codePart2')">
+            </div>
+            <button onclick="retrieveText()">Retrieve Text</button>
+        </div>
+
+        <div id="loadingText" class="loading-text" style="display:none;"></div>
+        <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+        <div id="retrievedText"></div>
+    </div>
+
+    <script>
+        function moveToNext(current, nextId) {
+            let maxLength = parseInt(current.getAttribute("maxlength"));
+            if (current.value.length === maxLength) {
+                let nextInput = document.getElementById(nextId);
+                if (nextInput) nextInput.focus();
+            }
+        }
+
+        function moveBack(event, currentId, prevId) {
+            if (event.key === "Backspace" && document.getElementById(currentId).value.length === 0 && prevId) {
+                document.getElementById(prevId).focus();
+            }
+        }
+
+        function hashCode(str) {
+            return Array.from(str).reduce((acc, char) => acc + char.charCodeAt(0), 0) % 99999 + 1;
+        }
+
+        function generateRandomString(hash, length) {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; // Only uppercase + numbers
+            let result = "";
+            for (let i = 0; i < length; i++) {
+                result += chars[(hash + i) % chars.length];
+            }
+            return result;
+        }
+
+        function generateLocationCode() {
+            let inputText = document.getElementById("inputText").value.trim();
+            if (!inputText) return alert("Please enter some text!");
+
+            let hash = hashCode(inputText);
+            let part1 = generateRandomString(hash, 1);
+            let part2 = generateRandomString(hash + 1, 2);
+            let part3 = generateRandomString(hash + 3, 3);
+
+            let locationCode = `${part1} ${part2} ${part3}`;
+            let vaultData = JSON.parse(localStorage.getItem("vaultData")) || {};
+            vaultData[locationCode] = inputText;
+            localStorage.setItem("vaultData", JSON.stringify(vaultData));
+
+            document.getElementById("locationCode").innerText = `Your Code: ${locationCode}`;
+        }
+
+        function retrieveText() {
+            let code1 = document.getElementById("codePart1").value.trim().toUpperCase();
+            let code2 = document.getElementById("codePart2").value.trim().toUpperCase();
+            let code3 = document.getElementById("codePart3").value.trim().toUpperCase();
+            let locationCode = `${code1} ${code2} ${code3}`;
+            let vaultData = JSON.parse(localStorage.getItem("vaultData")) || {};
+            let resultArea = document.getElementById("retrievedText");
+
+            let loadingText = document.getElementById("loadingText");
+            let progressBar = document.getElementById("progressBar");
+
+            loadingText.style.display = "block";
+            document.querySelector(".progress-container").style.display = "block";
+            resultArea.style.display = "none";
+
+            let progress = 0;
+            let interval, textInterval;
+
+            function generateRandomWord() {
+                const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                return Array(5).fill().map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
+            }
+
+            function updateProgress() {
+                if (progress < 100) {
+                    progress += Math.random() * 20;
+                    if (progress > 100) progress = 100;
+                    progressBar.style.width = progress + "%";
+                }
+            }
+
+            textInterval = setInterval(() => {
+                loadingText.innerText = generateRandomWord();
+            }, 100);
+
+            interval = setInterval(() => {
+                updateProgress();
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    clearInterval(textInterval);
+                    setTimeout(() => {
+                        loadingText.style.display = "none";
+                        document.querySelector(".progress-container").style.display = "none";
+                        let storedText = vaultData[locationCode] || "❌ Data Not Found!";
+                        resultArea.innerText = storedText;
+                        resultArea.style.display = "block";
+                    }, 500);
+                }
+            }, 200);
+        }
+    </script>
+</body>
+</html>
